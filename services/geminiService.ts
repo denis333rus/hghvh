@@ -1,8 +1,10 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SearchResult, ChatMessage, CourtVerdict } from "../types";
 
-// Initialize the client safely.
-const apiKey = (typeof process !== 'undefined' && process.env && process.env.API_KEY) ? process.env.API_KEY : 'DUMMY_KEY';
+// Access API_KEY directly. Bundlers (Vite/Webpack) typically replace 'process.env.API_KEY' 
+// with the actual string value at build time. The previous runtime check for 'process' 
+// failed in browsers where the global process object is missing, triggering the fallback.
+const apiKey = process.env.API_KEY || "";
 const ai = new GoogleGenAI({ apiKey });
 
 const cleanResponse = (text: string | undefined): string => {
@@ -44,6 +46,7 @@ export const searchWeb = async (query: string): Promise<SearchResult[]> => {
 
   } catch (error) {
     console.error("Search failed:", error);
+    // Fallback content if search fails (e.g. quota or key issues)
     return [
       { title: "Twitch", url: "https://www.twitch.tv/", snippet: "Платформа для прямых трансляций." },
       { title: "Steam", url: "https://store.steampowered.com/", snippet: "Добро пожаловать в Steam." },
@@ -118,7 +121,7 @@ export const generatePageContent = async (url: string, title: string, isCensored
     let text = cleanResponse(response.text);
     return `<div class="min-h-[150vh] bg-white text-gray-900 font-sans">${text || "Failed to load content."}</div>`;
   } catch (error) {
-    return `<div class="p-8">Ошибка генерации контента: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
+    return `<div class="p-8">Ошибка генерации контента: ${error instanceof Error ? error.message : 'Unknown error'}. Проверьте API ключ.</div>`;
   }
 };
 
@@ -149,7 +152,7 @@ export const chatWithSiteOwner = async (
     const text = cleanResponse(response.text);
     return JSON.parse(text);
   } catch (error) {
-    return { reply: "Ошибка соединения...", agreedToRemove: false };
+    return { reply: "Ошибка соединения (Проверьте API ключ)...", agreedToRemove: false };
   }
 };
 
@@ -204,7 +207,7 @@ export const judgeCourtCase = async (
     console.error("Court failed:", error);
     return { 
       verdict: 'UPHOLD', 
-      reasoning: "В связи с технической ошибкой системы правосудия, решение оставлено в силе автоматически.", 
+      reasoning: "В связи с технической ошибкой системы правосудия (или неверным API ключом), решение оставлено в силе автоматически.", 
       judgeName: "Система Авто-Суд" 
     };
   }
